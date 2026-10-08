@@ -1,0 +1,13 @@
+{
+  "users": [],
+  "savedPictures": [
+    {
+      "userId": null,
+      "wallpaperId": "wallpaper-20",
+      "title": "Lavender Field",
+      "image": "https://picsum.photos/seed/wallpaper-20/900/1200",
+      "id": "l5xjYpQraTQ"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
