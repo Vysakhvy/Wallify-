@@ -135,3 +135,8 @@ body {
   font-weight: 700;
   margin-bottom: 12px;
 }
+.download-btn.downloaded {
+  background-color: #28a745;
+  color: #ffffff;
+  border-color: #28a745;
+}

@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+
+const API_BASE_URL = 'https://wallify-backend-crj0.onrender.com'
 
 const wallpapers = [
   { id: 'wallpaper-1', title: 'Mountain', image: 'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=900&q=85' },
@@ -9,8 +11,7 @@ const wallpapers = [
   { id: 'wallpaper-5', title: 'Flowers', image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=900&q=85' },
   { id: 'wallpaper-6', title: 'Desert', image: 'https://images.unsplash.com/photo-1509316785289-025f5b846b35?auto=format&fit=crop&w=900&q=85' },
   { id: 'wallpaper-7', title: 'Lake', image: 'https://images.unsplash.com/photo-1433086966358-54859d0ed716?auto=format&fit=crop&w=900&q=85' },
-  { id: 'wallpaper-8', title: 'Night Sky', image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=900&q=85' }
-,
+  { id: 'wallpaper-8', title: 'Night Sky', image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=900&q=85' },
   { id: 'wallpaper-9', title: 'Aurora', image: 'https://picsum.photos/seed/wallpaper-9/900/1200' },
   { id: 'wallpaper-10', title: 'Snow Mountain', image: 'https://picsum.photos/seed/wallpaper-10/900/1200' },
   { id: 'wallpaper-11', title: 'Purple Sky', image: 'https://picsum.photos/seed/wallpaper-11/900/1200' },
@@ -60,11 +61,12 @@ const wallpapers = [
   { id: 'wallpaper-55', title: 'Foggy Lake', image: 'https://picsum.photos/seed/wallpaper-55/900/1200' },
   { id: 'wallpaper-56', title: 'Sunrise Hills', image: 'https://picsum.photos/seed/wallpaper-56/900/1200' },
   { id: 'wallpaper-57', title: 'Evening Beach', image: 'https://picsum.photos/seed/wallpaper-57/900/1200' },
-  { id: 'wallpaper-58', title: 'Peaceful Valley', image: 'https://picsum.photos/seed/wallpaper-58/900/1200' }]
+  { id: 'wallpaper-58', title: 'Peaceful Valley', image: 'https://picsum.photos/seed/wallpaper-58/900/1200' }
+]
 
 function Gallery() {
   const navigate = useNavigate()
-  const [user, setUser] = useState(() => {
+  const [user] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('user'))
     } catch {
@@ -72,6 +74,13 @@ function Gallery() {
     }
   })
   const [savedPictures, setSavedPictures] = useState([])
+  const [downloadedIds, setDownloadedIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('downloadedWallpapers')) || []
+    } catch {
+      return []
+    }
+  })
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -80,21 +89,46 @@ function Gallery() {
       return
     }
 
+    const controller = new AbortController()
+
     const loadSavedPictures = async () => {
       try {
-        const response = await fetch(`https://wallify-backend-crj0.onrender.com/savedPictures?userId=${user.id}`)
+        const response = await fetch(`${API_BASE_URL}/savedPictures?userId=${user.id}`, {
+          signal: controller.signal
+        })
         if (!response.ok) throw new Error()
-        setSavedPictures(await response.json())
-      } catch {
-        setError('Could not load saved wallpapers')
+        const data = await response.json()
+        setSavedPictures(data)
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setError('Could not load saved wallpapers')
+        }
       }
     }
 
     loadSavedPictures()
-  }, [])
 
-  const isSaved = (wallpaperId) =>
-    savedPictures.some((picture) => picture.wallpaperId === wallpaperId)
+    return () => controller.abort()
+  }, [user, navigate])
+
+  const isSaved = useCallback(
+    (wallpaperId) => savedPictures.some((picture) => picture.wallpaperId === wallpaperId),
+    [savedPictures]
+  )
+
+  const isDownloaded = useCallback(
+    (wallpaperId) => downloadedIds.includes(wallpaperId),
+    [downloadedIds]
+  )
+
+  const markAsDownloaded = (wallpaperId) => {
+    setDownloadedIds((prev) => {
+      if (prev.includes(wallpaperId)) return prev
+      const updated = [...prev, wallpaperId]
+      localStorage.setItem('downloadedWallpapers', JSON.stringify(updated))
+      return updated
+    })
+  }
 
   const downloadWallpaper = async (wallpaper) => {
     if (!user) {
@@ -102,8 +136,10 @@ function Gallery() {
       return
     }
 
+    setError('')
+
     try {
-      const response = await fetch(wallpaper.image)
+      const response = await fetch(wallpaper.image, { mode: 'cors' })
       if (!response.ok) throw new Error()
 
       const blob = await response.blob()
@@ -115,37 +151,39 @@ function Gallery() {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
+
+      markAsDownloaded(wallpaper.id)
     } catch {
-      setError('Could not download wallpaper')
+      // Direct link fallback if fetch is blocked by CORS
+      window.open(wallpaper.image, '_blank')
+      markAsDownloaded(wallpaper.id)
     }
   }
 
   const saveWallpaper = async (wallpaper) => {
-    const currentUser = user
-
-    if (!currentUser?.id) {
+    if (!user?.id) {
       setError('Please login again before saving a wallpaper')
       localStorage.removeItem('user')
       navigate('/login')
       return
     }
 
-    const existing = savedPictures.find(
-      (picture) => picture.wallpaperId === wallpaper.id
-    )
+    setError('')
+    const existing = savedPictures.find((picture) => picture.wallpaperId === wallpaper.id)
 
     try {
       if (existing) {
-        await fetch(`https://wallify-backend-crj0.onrender.com/savedPictures/${existing.id}`, {
+        const response = await fetch(`${API_BASE_URL}/savedPictures/${existing.id}`, {
           method: 'DELETE'
         })
+        if (!response.ok) throw new Error()
         setSavedPictures((old) => old.filter((picture) => picture.id !== existing.id))
       } else {
-        const response = await fetch('https://wallify-backend-crj0.onrender.com/savedPictures', {
+        const response = await fetch(`${API_BASE_URL}/savedPictures`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: currentUser.id,
+            userId: user.id,
             wallpaperId: wallpaper.id,
             title: wallpaper.title,
             image: wallpaper.image
@@ -157,7 +195,7 @@ function Gallery() {
         setSavedPictures((old) => [...old, newPicture])
       }
     } catch {
-      setError('Could not save wallpaper')
+      setError('Could not update saved wallpaper')
     }
   }
 
@@ -167,7 +205,7 @@ function Gallery() {
     <div className="container py-4">
       <div className="text-center mb-4">
         <h1>Wallpaper Gallery</h1>
-        <p className="text-muted">Find a wallpaper you like and save it.</p>
+        <p className="text-muted">Find a wallpaper you like and save or download it.</p>
       </div>
 
       {error && <p className="text-danger text-center">{error}</p>}
@@ -175,7 +213,7 @@ function Gallery() {
       <div className="wallpaper-grid">
         {wallpapers.map((wallpaper) => (
           <div className="wallpaper-card" key={wallpaper.id}>
-            <img src={wallpaper.image} alt={wallpaper.title} />
+            <img src={wallpaper.image} alt={wallpaper.title} loading="lazy" />
             <div className="wallpaper-overlay">
               <span>{wallpaper.title}</span>
               <div className="wallpaper-actions">
@@ -186,10 +224,10 @@ function Gallery() {
                   {isSaved(wallpaper.id) ? '♥ Saved' : '♡ Save'}
                 </button>
                 <button
-                  className="download-btn"
+                  className={isDownloaded(wallpaper.id) ? 'download-btn downloaded' : 'download-btn'}
                   onClick={() => downloadWallpaper(wallpaper)}
                 >
-                  ↓ Download
+                  {isDownloaded(wallpaper.id) ? '✓ Downloaded' : '↓ Download'}
                 </button>
               </div>
             </div>
