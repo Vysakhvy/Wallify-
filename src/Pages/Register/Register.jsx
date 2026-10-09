@@ -31,7 +31,7 @@ function Register() {
 
     try {
       const checkResponse = await fetch(
-        `http://localhost:3000/users?username=${encodeURIComponent(username)}`
+        `https://wallify-backend-crj0.onrender.com/users?username=${encodeURIComponent(username)}`
       )
       const existingUsers = await checkResponse.json()
 
@@ -40,7 +40,7 @@ function Register() {
         return
       }
 
-      await fetch('http://localhost:3000/users', {
+      await fetch('https://wallify-backend-crj0.onrender.com/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

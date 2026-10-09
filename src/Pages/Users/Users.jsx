@@ -10,7 +10,7 @@ function Users() {
   useEffect(() => {
     const getUsers = async () => {
       try {
-        const response = await fetch('http://localhost:3000/users')
+        const response = await fetch('https://wallify-backend-crj0.onrender.com/users')
 
         if (!response.ok) {
           throw new Error('Could not load users')
@@ -39,7 +39,7 @@ function Users() {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/users/${user.id}`, {
+      const response = await fetch(`https://wallify-backend-crj0.onrender.com/users/${user.id}`, {
         method: 'DELETE'
       })
 

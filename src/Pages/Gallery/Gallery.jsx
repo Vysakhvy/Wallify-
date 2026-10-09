@@ -82,7 +82,7 @@ function Gallery() {
 
     const loadSavedPictures = async () => {
       try {
-        const response = await fetch(`http://localhost:3000/savedPictures?userId=${user.id}`)
+        const response = await fetch(`https://wallify-backend-crj0.onrender.com/savedPictures?userId=${user.id}`)
         if (!response.ok) throw new Error()
         setSavedPictures(await response.json())
       } catch {
@@ -136,12 +136,12 @@ function Gallery() {
 
     try {
       if (existing) {
-        await fetch(`http://localhost:3000/savedPictures/${existing.id}`, {
+        await fetch(`https://wallify-backend-crj0.onrender.com/savedPictures/${existing.id}`, {
           method: 'DELETE'
         })
         setSavedPictures((old) => old.filter((picture) => picture.id !== existing.id))
       } else {
-        const response = await fetch('http://localhost:3000/savedPictures', {
+        const response = await fetch('https://wallify-backend-crj0.onrender.com/savedPictures', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

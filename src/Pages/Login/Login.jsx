@@ -18,7 +18,7 @@ function Login() {
 
     try {
       // Get the registered users from the JSON backend
-      const response = await fetch('http://localhost:3000/users')
+      const response = await fetch('https://wallify-backend-crj0.onrender.com/users')
 
       if (!response.ok) {
         throw new Error('Could not connect to the backend')
